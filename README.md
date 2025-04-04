@@ -1,107 +1,136 @@
 # MIDlet API
 
-An express api for [Slack Client MIDlet](https://github.com/Subhi-Dev/SlackClientMIDlet), to serve as a middle man between the MIDlet and the Slack API.
+An express api for [MIDlet Store](https://github.com/Subhi-Dev/MIDlet-Store).  
+A modern API for serving Java ME MIDlet applications to legacy devices. This API enables discovery, download, and community interaction for Java ME applications.
+
+## Overview
+
+MIDlet Store API is a backend service that allows Java ME devices to:
+- Register device capabilities
+- Browse available applications
+- Search for specific apps
+- View top-rated applications
+- Download compatible MIDlets
+- Vote on applications
+
+The API is designed to work with limited capabilities of Java ME devices by using CSV responses that are easily parsed by legacy devices.
 
 ## Features
 
-- **Real-time Slack integration** - Connect to Slack channels and receive messages in real-time
-- **TCP Socket Interface** - Subscribe to channels for real-time message streaming
-- **RESTful API** - HTTP endpoints for retrieving channel messages and thread replies
-- **Message Sending** - Send messages to Slack channels or threads via API
-- **Custom Formatting** - Messages are formatted for easy parsing and integration
-
-## Setup
-
-### Prerequisites
-
-- Node.js (v16 or higher)
-- pnpm package manager
-- Slack workspace with admin permissions
-- Slack Bot Token and App Token
-
-### Environment Variables
-
-Create a `.env` file in the root directory with the following variables:
-
-```
-SLACK_BOT_TOKEN=xoxb-your-bot-token
-SLACK_APP_TOKEN=xapp-your-app-token
-PORT=3000
-SOCKET_PORT=3001
-```
-
-### Installation
-
-```bash
-# Install dependencies
-pnpm install
-
-# Start the development server
-pnpm dev
-
-# Start production server
-pnpm start
-```
-
-## Socket Interface
-
-The server provides a TCP socket interface for real-time message subscriptions.
-
-### Commands
-
-- **Subscribe to a channel**: `//SUBSCRIBE <channelId>`
-- **Unsubscribe from a channel**: `//UNSUBSCRIBE <channelId>`
-
-### Message Format
-
-Messages are delivered in the following pipe-delimited format:
-
-```
-<thread_timestamp>|<username>|<time>|<message_text>
-```
-
-Example:
-
-```
-1643382761.000400|john.doe|14:32|Hello world!
-```
+- **Device Registration**: Register devices with their supported APIs
+- **App Listings**: Browse all available applications
+- **App Details**: View detailed information about specific applications
+- **Search**: Find applications by name
+- **Top Charts**: View most popular applications
+- **Voting System**: Upvote or downvote applications
+- **Compatibility Checking**: Determine application compatibility with specific devices
 
 ## API Endpoints
 
-### Health Check
+| Endpoint             | Method | Description                               |
+| -------------------- | ------ | ----------------------------------------- |
+| `/storeapi/version`  | GET    | Get API version                           |
+| `/storeapi/register` | GET    | Register a device with its supported APIs |
+| `/storeapi/apps`     | GET    | List all available applications           |
+| `/storeapi/apps/:id` | GET    | Get details for a specific application    |
+| `/storeapi/search`   | GET    | Search for applications by name           |
+| `/storeapi/topchart` | GET    | Get top-rated applications                |
+| `/storeapi/vote`     | POST   | Vote for an application                   |
+| `/storeapi/download` | GET    | Download application binary               |
+
+## API Response Format
+
+Most endpoints return data in CSV format for easy parsing on limited Java ME devices:
 
 ```
-GET /health
+id,name,description,smallIconUrl,downloadUrl,isFeatured,supportStatus,votes
+1,Snake,Classic snake game,http://example.com/icons/snake.png,http://example.com/apps/snake.jar,true,fully_supported,42
 ```
 
-Returns the status of the server.
+## Compatibility Status
 
-### Channel Messages
+Applications report compatibility with devices in three states:
 
-```
-GET /messages/:channelId
-```
+- `fully_supported`: The device supports all APIs used by the application
+- `partially_supported`: The device supports the minimum required APIs but not all
+- `not_supported`: The device does not support the minimum required APIs
+- `unknown`: Compatibility could not be determined
 
-Retrieves the 20 most recent messages from a specific Slack channel in CSV format.
+## Database Schema
 
-### Thread Messages
+The API uses a SQLite database with Drizzle ORM. The main tables include:
 
-```
-GET /messages/:channelId/thread/:threadTs
-```
+- `devices`: Registered devices and their identifiers
+- `apps`: Application metadata and download information
+- `apis`: Available APIs that can be supported by devices
+- `devices_apis`: Maps which APIs are supported by which devices
+- `categories`: Application categories
+- `developers`: Application developers
+- `screenshots`: Application screenshots
+- `votes`: User votes on applications
 
-Retrieves all replies in a specific thread in CSV format.
+## Setup and Installation
 
-### Send Message
+1. Clone the repository:
 
-```
-GET /messages/send/:channelId?message=<your-message>&thread_ts=<optional-thread-ts>
-```
+   ```
+   git clone https://github.com/YourUsername/MIDlet-Store-API.git
+   cd MIDlet-Store-API
+   ```
 
-Sends a message to a Slack channel or thread.
+2. Install dependencies:
 
-Parameters:
+   ```
+   npm install
+   ```
 
-- `message`: The text message to send (required)
-- `thread_ts`: Thread timestamp to reply to (optional)
+3. Create a `.env` file:
 
+   ```
+   PORT=3000
+   DB_FILE_NAME=file:./local.db
+   ```
+
+4. Initialize and seed the database:
+
+   ```
+   npm run db:push
+   npm run db:seed
+   ```
+
+5. Start the server:
+   ```
+   npm run dev
+   ```
+
+## Technologies Used
+
+- Node.js and Express.js for the API server
+- Drizzle ORM for database operations
+- LibSQL/SQLite for the database
+- TypeScript for type-safe code
+
+## Client Integration
+
+To integrate the MIDlet Store with a Java ME client:
+
+1. Make HTTP requests to the API endpoints
+2. Parse CSV responses
+3. Display results to users
+4. Handle downloads and installation
+
+Example Java ME code for parsing CSV responses is available in the client repository.
+
+## License
+
+[MIT License](LICENSE)
+
+## Contributing
+
+Contributions are welcome! Please feel free to submit a Pull Request.
+
+1. Fork the repository
+2. Create your feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'Add some amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request

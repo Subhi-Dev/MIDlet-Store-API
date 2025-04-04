@@ -131,3 +131,5 @@ dist
 
 # Additional ignores
 .DS_Store
+
+local.db
