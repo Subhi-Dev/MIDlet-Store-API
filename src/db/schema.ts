@@ -1,47 +1,55 @@
-import { int, sqliteTable, text, real } from 'drizzle-orm/sqlite-core'
+import {
+  integer,
+  boolean,
+  text,
+  real,
+  pgTableCreator,
+  serial
+} from 'drizzle-orm/pg-core'
 import { relations } from 'drizzle-orm'
-import { integer } from 'drizzle-orm/sqlite-core'
+
+export const createTable = pgTableCreator((name) => `ms_${name}`)
 
 // Rename to devicesTable since the table name is 'devices'
-export const devicesTable = sqliteTable('devices', {
-  id: int().primaryKey({ autoIncrement: true }),
+export const devicesTable = createTable('devices', {
+  id: serial().primaryKey(),
   identifier: text().notNull().unique(),
   name: text(),
   manufacturer: text()
 })
 
 // Categories table
-export const categoriesTable = sqliteTable('categories', {
-  id: int().primaryKey({ autoIncrement: true }),
+export const categoriesTable = createTable('categories', {
+  id: serial().primaryKey(),
   name: text().notNull().unique()
 })
 
 // Developers table
-export const developersTable = sqliteTable('developers', {
-  id: int().primaryKey({ autoIncrement: true }),
+export const developersTable = createTable('developers', {
+  id: serial().primaryKey(),
   name: text().notNull()
 })
 
-export const apisTable = sqliteTable('apis', {
-  id: int().primaryKey({ autoIncrement: true }),
+export const apisTable = createTable('apis', {
+  id: serial().primaryKey(),
   name: text().notNull(),
   description: text().notNull()
 })
-export const devicesApisTable = sqliteTable('devices_apis', {
-  id: int().primaryKey({ autoIncrement: true }),
-  deviceId: int()
+export const devicesApisTable = createTable('devices_apis', {
+  id: serial().primaryKey(),
+  deviceId: integer()
     .notNull()
     .references(() => devicesTable.id),
-  apiId: int()
+  apiId: integer()
     .notNull()
     .references(() => apisTable.id)
 })
-export const votesTable = sqliteTable('votes', {
-  id: int().primaryKey({ autoIncrement: true }),
-  appId: int()
+export const votesTable = createTable('votes', {
+  id: serial().primaryKey(),
+  appId: integer()
     .notNull()
     .references(() => appsTable.id),
-  deviceId: int()
+  deviceId: integer()
     .notNull()
     .references(() => devicesTable.id),
   voteType: text().notNull(), // 'upvote' or 'downvote'
@@ -77,28 +85,28 @@ export const apisRelations = relations(apisTable, ({ many }) => ({
 }))
 
 // Apps table
-export const appsTable = sqliteTable('apps', {
-  id: int().primaryKey({ autoIncrement: true }),
+export const appsTable = createTable('apps', {
+  id: serial().primaryKey(),
   name: text().notNull(),
   description: text().notNull(),
   smallIconUrl: text().notNull(),
   downloadUrl: text().notNull(),
-  isFeatured: integer({ mode: 'boolean' }),
+  isFeatured: boolean().default(false),
   minimumApis: text().notNull(), // Comma-separated list of API names
   usedApis: text().notNull(), // Comma-separated list of API names
-  votes: int().default(0),
+  votes: integer().default(0),
   version: text().notNull(),
   size: real().notNull(), // in KB
-  developerId: int().references(() => developersTable.id),
-  categoryId: int().references(() => categoriesTable.id),
+  developerId: integer().references(() => developersTable.id),
+  categoryId: integer().references(() => categoriesTable.id),
   createdAt: text().default('CURRENT_TIMESTAMP'),
   updatedAt: text().default('CURRENT_TIMESTAMP')
 })
 
 // App screenshots table
-export const screenshotsTable = sqliteTable('screenshots', {
-  id: int().primaryKey({ autoIncrement: true }),
-  appId: int()
+export const screenshotsTable = createTable('screenshots', {
+  id: serial().primaryKey(),
+  appId: integer()
     .notNull()
     .references(() => appsTable.id),
   imageUrl: text().notNull()

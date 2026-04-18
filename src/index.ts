@@ -1,7 +1,7 @@
 import express, { Request, Response } from 'express'
 import dotenv from 'dotenv'
-import { drizzle } from 'drizzle-orm/libsql'
-import { createClient } from '@libsql/client'
+import { drizzle } from 'drizzle-orm/postgres-js'
+import postgres from 'postgres'
 import { eq, desc, like, and } from 'drizzle-orm'
 import {
   appsTable,
@@ -16,12 +16,18 @@ import * as schema from './db/schema'
 // Load environment variables
 dotenv.config()
 
-// Setup database connection
-const client = createClient({
-  url: process.env.DB_FILE_NAME || 'file:./local.db'
-})
+/**
+ * Cache the database connection in development. This avoids creating a new connection on every HMR
+ * update.
+ */
+const globalForDb = globalThis as unknown as {
+  conn: postgres.Sql | undefined
+}
 
-const db = drizzle({ client, schema })
+const conn = globalForDb.conn ?? postgres(process.env.DATABASE_URL || '')
+if (process.env.NODE_ENV !== 'production') globalForDb.conn = conn
+
+const db = drizzle(conn, { schema })
 
 const app = express()
 const PORT = process.env.PORT || 3000
@@ -47,7 +53,11 @@ app.get('/storeapi/version', (req: Request, res: Response) => {
 
 // Root route
 app.get('/storeapi/download', (req: Request, res: Response) => {
-  res.status(200).json('If you see this, app is not available for download yet via this API. Skip the version check or download the app from the GitHub Repo.')
+  res
+    .status(200)
+    .json(
+      'If you see this, app is not available for download yet via this API. Skip the version check or download the app from the GitHub Repo.'
+    )
 })
 
 // Fixed route path with leading slash
@@ -120,7 +130,7 @@ app.get('/storeapi/register', async (req: Request, res: Response) => {
     }
 
     return res
-      .status(201)
+      .status(200)
       .json({ id: result[0].id, message: 'Device registered successfully' })
   } catch (error: any) {
     console.error('Error registering device:', error)
@@ -519,7 +529,10 @@ app.post('/storeapi/vote', async (req: Request, res: Response) => {
     }
 
     // Check if app exists
-    const app = await db.select().from(appsTable).where(eq(appsTable.id, Number(appId)))
+    const app = await db
+      .select()
+      .from(appsTable)
+      .where(eq(appsTable.id, Number(appId)))
     if (app.length === 0) {
       return res.status(404).json({ error: 'App not found' })
     }
@@ -529,7 +542,10 @@ app.post('/storeapi/vote', async (req: Request, res: Response) => {
       .select()
       .from(votesTable)
       .where(
-        and(eq(votesTable.appId, Number(appId)), eq(votesTable.deviceId, deviceData[0].id))
+        and(
+          eq(votesTable.appId, Number(appId)),
+          eq(votesTable.deviceId, deviceData[0].id)
+        )
       )
 
     if (existingVote.length > 0) {
@@ -544,13 +560,12 @@ app.post('/storeapi/vote', async (req: Request, res: Response) => {
         const voteValue = voteType === 'upvote' ? 2 : -2
         let response = await db
           .update(appsTable)
-          .set({ votes: (app[0].votes || 0)  + voteValue })
+          .set({ votes: (app[0].votes || 0) + voteValue })
           .where(eq(appsTable.id, Number(appId)))
           .returning()
-          return res.status(200).json(response[0].votes)
-        }
-        return res.status(200).json(app[0].votes)
-
+        return res.status(200).json(response[0].votes)
+      }
+      return res.status(200).json(app[0].votes)
     }
 
     // Create new vote
@@ -568,9 +583,7 @@ app.post('/storeapi/vote', async (req: Request, res: Response) => {
       .where(eq(appsTable.id, Number(appId)))
       .returning()
 
-    return res.status(200
-      
-    ).json(response[0].votes)
+    return res.status(200).json(response[0].votes)
   } catch (error: any) {
     console.error('Error recording vote:', error)
     return res.status(500).json({ error: 'Failed to record vote' })
